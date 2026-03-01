@@ -176,11 +176,11 @@ async def _dispatch(intent: str, body: AliceRequestBody, user: dict) -> AliceRes
         case "sleep.end":
             return reply(await hb.complete_sleep(user))
         case "diaper.pee":
-            return reply(await hb.log_diaper(user, mode="pee", pee=True, poo=False))
+            return reply(await hb.log_diaper(user, mode="pee"))
         case "diaper.poo":
-            return reply(await hb.log_diaper(user, mode="poo", pee=False, poo=True))
+            return reply(await hb.log_diaper(user, mode="poo"))
         case "diaper.both":
-            return reply(await hb.log_diaper(user, mode="both", pee=True, poo=True))
+            return reply(await hb.log_diaper(user, mode="both"))
         case "feed.bottle":
             amount = body.slot_value("feed.bottle", "amount")
             if amount is None:

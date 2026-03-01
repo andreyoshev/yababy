@@ -87,11 +87,9 @@ async def complete_sleep(user: dict) -> str:
     return f"{_name(user)} проснулся. Сон завершён."
 
 
-async def log_diaper(user: dict, mode: str = "both", pee: bool = True, poo: bool = False) -> str:
+async def log_diaper(user: dict, mode: str = "both") -> str:
     api = await _get_client(user)
-    await asyncio.to_thread(
-        partial(api.log_diaper, user["selected_child_uid"], mode=mode, pee=pee, poo=poo)
-    )
+    await asyncio.to_thread(partial(api.log_diaper, user["selected_child_uid"], mode=mode))
     labels = {"pee": "пописал", "poo": "покакал", "both": "пописал и покакал", "dry": "сухой подгузник"}
     return f"{_name(user)} {labels.get(mode, mode)}. Записано."
 
