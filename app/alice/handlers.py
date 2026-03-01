@@ -18,7 +18,8 @@ def _cap(name: str) -> str:
 HELP_TEXT = (
     "Я могу записывать сон, подгузники и кормление.\n"
     "Скажи, например: уснул, проснулся, пописал, покакал, "
-    "выпил 60 миллилитров, кушает левую, покушал."
+    "выпил 60 миллилитров, кушает левую, покушал.\n"
+    "А ещё: статус, когда ел, сколько не спит."
 )
 
 
@@ -133,6 +134,11 @@ _KEYWORD_PATTERNS: list[tuple[str, str]] = [
     (r"кушает|кормим|кормлю|ест\s+грудь|ест\s+(лев|прав)|кушает\s+(лев|прав)|кормим\s+(лев|прав)|кормлю\s+(лев|прав)|начал\w*\s+(есть|кушать|кормить)|сосёт|сосет", "feed.breast.start"),
     # breast end
     (r"поел|поела|покушал|покушала|наел(ся|ась)|накушал(ся|ась)|закончил\w*\s+(кормить|есть|кушать)|доел|доела|всё\s*съел|наелся", "feed.breast.end"),
+    # status
+    (r"когда\s+(ел|кушал|кормили|последний раз ел|последний раз кушал)", "status.feed"),
+    (r"сколько не спит|когда проснул|когда спал|давно не спит", "status.sleep"),
+    (r"когда\s+(какал|пописал|менял\w* подгузник|последний подгузник)", "status.diaper"),
+    (r"статус|как дела|что нового|как обстоят дела|расскажи", "status"),
     # help
     (r"помощь|помоги|что умеешь|что ты можешь|что ты умеешь", "help"),
 ]
@@ -187,6 +193,14 @@ async def _dispatch(intent: str, body: AliceRequestBody, user: dict) -> AliceRes
             return reply(await hb.start_feeding(user, side=side or "left"))
         case "feed.breast.end":
             return reply(await hb.complete_feeding(user))
+        case "status":
+            return reply(await hb.get_status(user, scope="full"))
+        case "status.sleep":
+            return reply(await hb.get_status(user, scope="sleep"))
+        case "status.feed":
+            return reply(await hb.get_status(user, scope="feed"))
+        case "status.diaper":
+            return reply(await hb.get_status(user, scope="diaper"))
         case "help" | "YANDEX.HELP":
             return reply(HELP_TEXT)
         case _:
