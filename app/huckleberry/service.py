@@ -179,10 +179,24 @@ def _format_feed_status(data: dict) -> str | None:
         return f"Последнее кормление {_relative_time(bottle_ts)}, бутылочка."
 
     if nursing_ts > 0:
-        duration = last_nursing.get("duration", 0)
-        if duration and duration > 60:
-            return f"Последнее кормление {_relative_time(nursing_ts)}, грудь {_duration_text(duration)}."
-        return f"Последнее кормление {_relative_time(nursing_ts)}, грудь."
+        left = last_nursing.get("leftDuration", 0)
+        right = last_nursing.get("rightDuration", 0)
+        last_side = prefs.get("lastSide", {}).get("lastSide", "")
+        side_label = {"left": "левая", "right": "правая"}.get(last_side, "")
+
+        parts = [f"Последнее кормление {_relative_time(nursing_ts)}, грудь"]
+        if side_label:
+            parts.append(f"(последняя -- {side_label})")
+        total = left + right
+        if total > 60:
+            details = []
+            if left > 0:
+                details.append(f"левая {_duration_text(left)}")
+            if right > 0:
+                details.append(f"правая {_duration_text(right)}")
+            if details:
+                parts.append(f", {', '.join(details)}")
+        return " ".join(parts) + "."
 
     return None
 
