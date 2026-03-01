@@ -89,12 +89,14 @@ async def _handle_link(alice_user_id: str, cmd: str) -> AliceResponse:
 
     children = data["children"]
     voice_name = children[0].get("voice_name", children[0]["name"])
+    tz = data.get("timezone", "Europe/Moscow")
     if len(children) == 1:
         child = children[0]
         await db.upsert_user(
             alice_user_id=alice_user_id,
             hb_email=data["email"],
             hb_refresh_token=data["refresh_token"],
+            timezone=tz,
             selected_child_uid=child["uid"],
             child_name=voice_name,
             children=children,
@@ -105,6 +107,7 @@ async def _handle_link(alice_user_id: str, cmd: str) -> AliceResponse:
         alice_user_id=alice_user_id,
         hb_email=data["email"],
         hb_refresh_token=data["refresh_token"],
+        timezone=tz,
         children=children,
     )
     names = ", ".join(c.get("voice_name", c["name"]) for c in children)

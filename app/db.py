@@ -93,9 +93,9 @@ async def update_refresh_token(alice_user_id: str, token: str) -> None:
     await _conn().commit()
 
 
-async def create_pending_link(hb_email: str, hb_refresh_token: str, children: list[dict]) -> str:
+async def create_pending_link(hb_email: str, hb_refresh_token: str, children: list[dict], timezone: str = "Europe/Moscow") -> str:
     pin = f"{random.randint(0, 999999):06d}"
-    data = json.dumps({"email": hb_email, "refresh_token": hb_refresh_token, "children": children})
+    data = json.dumps({"email": hb_email, "refresh_token": hb_refresh_token, "children": children, "timezone": timezone})
     await _conn().execute(
         "INSERT OR REPLACE INTO pending_links (pin, hb_data, created_at) VALUES (?, ?, ?)",
         (pin, data, time.time()),

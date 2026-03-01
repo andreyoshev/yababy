@@ -96,6 +96,7 @@
         <form method="POST" action="/setup/children">
             <input type="hidden" name="refresh_token" value="{{ refresh_token }}">
             <input type="hidden" name="hb_email" value="{{ hb_email }}">
+            <input type="hidden" name="timezone" value="{{ timezone or 'Europe/Moscow' }}">
             {% for child in children %}
             <div class="child-row">
                 <span class="hb-name">{{ child.name }}</span>
@@ -120,6 +121,7 @@
         {% endif %}
 
         <form method="POST" id="setupForm">
+            <input type="hidden" id="timezone" name="timezone" value="Europe/Moscow">
             <label for="email">Email от Huckleberry</label>
             <input type="email" id="email" name="email" required placeholder="you@example.com" value="{{ email or '' }}">
 
@@ -134,6 +136,10 @@
     </div>
 
     <script>
+        const tzInput = document.getElementById('timezone');
+        if (tzInput) {
+            try { tzInput.value = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch(e) {}
+        }
         const form = document.getElementById('setupForm');
         if (form) {
             form.addEventListener('submit', () => {

@@ -71,17 +71,17 @@ async def setup_page():
 
 
 @app.post("/setup", response_class=HTMLResponse)
-async def setup_submit(email: str = Form(...), password: str = Form(...)):
+async def setup_submit(email: str = Form(...), password: str = Form(...), timezone: str = Form("Europe/Moscow")):
     tpl = jinja.get_template("setup.html")
     try:
-        refresh_token, children = await hb.authenticate(email, password)
+        refresh_token, children = await hb.authenticate(email, password, timezone=timezone)
     except Exception as e:
         logger.error("Huckleberry auth failed: {}", e)
         return tpl.render(pin=None, children=None, error="Не удалось войти. Проверьте email и пароль.", email=email)
 
     return tpl.render(
         pin=None, children=children, error=None,
-        refresh_token=refresh_token, hb_email=email,
+        refresh_token=refresh_token, hb_email=email, timezone=timezone,
     )
 
 
@@ -91,6 +91,7 @@ async def setup_children(request: Request):
     form = await request.form()
     refresh_token = form.get("refresh_token", "")
     hb_email = form.get("hb_email", "")
+    timezone = form.get("timezone", "Europe/Moscow")
     count = int(form.get("count", "0"))
 
     children = []
@@ -102,6 +103,6 @@ async def setup_children(request: Request):
             voice_name = hb_name
         children.append({"uid": uid, "name": hb_name, "voice_name": voice_name.lower()})
 
-    pin = await db.create_pending_link(hb_email, refresh_token, children)
-    logger.info("PIN {} created for {} with {} children", pin, hb_email, len(children))
+    pin = await db.create_pending_link(hb_email, refresh_token, children, timezone)
+    logger.info("PIN {} created for {} with {} children (tz={})", pin, hb_email, len(children), timezone)
     return tpl.render(pin=pin, children=None, error=None)
