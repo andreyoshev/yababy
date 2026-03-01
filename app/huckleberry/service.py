@@ -43,16 +43,20 @@ async def _get_client(user: dict) -> HuckleberryAPI:
     return api
 
 
+def _name(user: dict) -> str:
+    return (user.get("child_name") or "").capitalize()
+
+
 async def start_sleep(user: dict) -> str:
     api = await _get_client(user)
     await asyncio.to_thread(api.start_sleep, user["selected_child_uid"])
-    return f"{user['child_name']} уснул. Сон записан."
+    return f"{_name(user)} уснул. Записано."
 
 
 async def complete_sleep(user: dict) -> str:
     api = await _get_client(user)
     await asyncio.to_thread(api.complete_sleep, user["selected_child_uid"])
-    return f"{user['child_name']} проснулся. Сон завершён."
+    return f"{_name(user)} проснулся. Сон завершён."
 
 
 async def log_diaper(user: dict, mode: str = "both", pee: bool = True, poo: bool = False) -> str:
@@ -61,7 +65,7 @@ async def log_diaper(user: dict, mode: str = "both", pee: bool = True, poo: bool
         partial(api.log_diaper, user["selected_child_uid"], mode=mode, pee=pee, poo=poo)
     )
     labels = {"pee": "пописал", "poo": "покакал", "both": "пописал и покакал", "dry": "сухой подгузник"}
-    return f"{user['child_name']} -- {labels.get(mode, mode)}. Записано."
+    return f"{_name(user)} {labels.get(mode, mode)}. Записано."
 
 
 async def log_bottle(user: dict, amount: float, bottle_type: str = "Formula", units: str = "ml") -> str:
@@ -69,17 +73,17 @@ async def log_bottle(user: dict, amount: float, bottle_type: str = "Formula", un
     await asyncio.to_thread(
         partial(api.log_bottle_feeding, user["selected_child_uid"], amount=amount, bottle_type=bottle_type, units=units)
     )
-    return f"{user['child_name']} выпил {amount:.0f} мл. Записано."
+    return f"{_name(user)} выпил {amount:.0f} мл. Записано."
 
 
 async def start_feeding(user: dict, side: str = "left") -> str:
     api = await _get_client(user)
     await asyncio.to_thread(partial(api.start_feeding, user["selected_child_uid"], side=side))
     side_label = {"left": "левая", "right": "правая"}.get(side, side)
-    return f"{user['child_name']} начал есть, {side_label} грудь. Записано."
+    return f"{_name(user)} кушает, {side_label} грудь. Записано."
 
 
 async def complete_feeding(user: dict) -> str:
     api = await _get_client(user)
     await asyncio.to_thread(api.complete_feeding, user["selected_child_uid"])
-    return f"{user['child_name']} поел. Кормление завершено."
+    return f"{_name(user)} покушал. Записано."

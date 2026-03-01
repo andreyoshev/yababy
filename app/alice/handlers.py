@@ -11,10 +11,14 @@ from app.huckleberry import service as hb
 
 SETUP_URL = "yababy.oshev.me/setup"
 
+
+def _cap(name: str) -> str:
+    return name.capitalize() if name else name
+
 HELP_TEXT = (
     "Я могу записывать сон, подгузники и кормление.\n"
     "Скажи, например: уснул, проснулся, пописал, покакал, "
-    "выпил 60 мл, начал есть, поел."
+    "выпил 60 миллилитров, кушает левую, покушал."
 )
 
 
@@ -36,7 +40,7 @@ async def handle(body: AliceRequestBody) -> AliceResponse:
         return await _try_select_child(user, cmd)
 
     if body.session.new and not cmd:
-        return reply(f"Привет! Слежу за {user['child_name']}. {HELP_TEXT}")
+        return reply(f"Привет! Слежу за {_cap(user['child_name'])}. {HELP_TEXT}")
 
     intent_name = _detect_intent(body)
     logger.info("Detected intent: {} for command: {}", intent_name, cmd)
@@ -52,7 +56,7 @@ def _ask_to_link() -> AliceResponse:
     return reply(
         f"Привет! Для начала привяжи аккаунт Huckleberry. "
         f"Зайди на {SETUP_URL}, получи код и скажи его мне.",
-        buttons=[{"title": "Открыть настройку", "url": f"https://{SETUP_URL}"}],
+        buttons=[{"title": "Настроить yababy.oshev.me", "url": f"https://{SETUP_URL}", "hide": False}],
     )
 
 
@@ -65,7 +69,7 @@ async def _try_select_child(user: dict, cmd: str) -> AliceResponse:
         voice_name = child.get("voice_name", child["name"]).lower()
         if voice_name in cmd:
             await db.update_user_child(user["alice_user_id"], child["uid"], voice_name)
-            return reply(f"Отлично, слежу за {voice_name}! {HELP_TEXT}")
+            return reply(f"Отлично, слежу за {_cap(voice_name)}! {HELP_TEXT}")
 
     names = ", ".join(c.get("voice_name", c["name"]) for c in children)
     return reply(f"Не поняла имя. Скажите одно из: {names}")
@@ -94,7 +98,7 @@ async def _handle_link(alice_user_id: str, cmd: str) -> AliceResponse:
             child_name=voice_name,
             children=children,
         )
-        return reply(f"Готово! Аккаунт привязан, слежу за {voice_name}. {HELP_TEXT}")
+        return reply(f"Готово! Аккаунт привязан, слежу за {_cap(voice_name)}. {HELP_TEXT}")
 
     await db.upsert_user(
         alice_user_id=alice_user_id,
@@ -116,15 +120,21 @@ def _detect_intent(body: AliceRequestBody) -> str:
 
 
 _KEYWORD_PATTERNS: list[tuple[str, str]] = [
-    (r"(?:уснул|заснул|заснула|спит|засыпает|укладываем|уснула)", "sleep.start"),
-    (r"(?:проснул(?:ся|ась)|встал|встала|не спит)", "sleep.end"),
-    (r"(?:пописал(?:а|и)?)\s.*(?:покакал(?:а|и)?)|(?:покакал(?:а|и)?)\s.*(?:пописал(?:а|и)?)", "diaper.both"),
-    (r"(?:покакал(?:а|и)?)", "diaper.poo"),
-    (r"(?:пописал(?:а|и)?)", "diaper.pee"),
-    (r"(\d+)\s*мл|бутылоч", "feed.bottle"),
-    (r"(?:начал(?:а|и)?\s+есть|кормим\s+грудью|ест\s+грудь|начал(?:а|и)?\s+кормить|ест\s+(?:левую|правую)|кормим\s+(?:левой|правой))", "feed.breast.start"),
-    (r"(?:поел(?:а)?|наел(?:ся|ась)|закончил(?:а|и)?\s+кормить|закончил(?:а|и)?\s+есть)", "feed.breast.end"),
-    (r"(?:помощь|помоги|что умеешь|что ты можешь)", "help"),
+    # sleep
+    (r"уснул|уснула|заснул|заснула|спит|засыпает|укладываем|укладываю|лёг спать|легла спать|баиньки", "sleep.start"),
+    (r"проснул(ся|ась)|встал|встала|не спит|подъём", "sleep.end"),
+    # diaper (both must be before individual)
+    (r"попис\w*.*покак\w*|покак\w*.*попис\w*", "diaper.both"),
+    (r"покакал|покакала|накакал|накакала", "diaper.poo"),
+    (r"пописал|пописала|написал|написала", "diaper.pee"),
+    # bottle
+    (r"\d+\s*(мл|миллилитр)|бутылоч", "feed.bottle"),
+    # breast start
+    (r"кушает|кормим|кормлю|ест\s+грудь|ест\s+(лев|прав)|кушает\s+(лев|прав)|кормим\s+(лев|прав)|кормлю\s+(лев|прав)|начал\w*\s+(есть|кушать|кормить)|сосёт|сосет", "feed.breast.start"),
+    # breast end
+    (r"поел|поела|покушал|покушала|наел(ся|ась)|накушал(ся|ась)|закончил\w*\s+(кормить|есть|кушать)|доел|доела|всё\s*съел|наелся", "feed.breast.end"),
+    # help
+    (r"помощь|помоги|что умеешь|что ты можешь|что ты умеешь", "help"),
 ]
 
 
