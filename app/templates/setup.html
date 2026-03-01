@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YaBaby -- Привязка аккаунта</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f0ff;
+            color: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            padding: 40px 32px;
+            max-width: 440px;
+            width: 100%;
+            margin: 20px;
+        }
+        h1 { font-size: 24px; margin-bottom: 8px; text-align: center; }
+        .subtitle { color: #666; text-align: center; margin-bottom: 28px; font-size: 14px; }
+        label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+        input[type="email"], input[type="password"], input[type="text"] {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 16px;
+            transition: border-color 0.2s;
+        }
+        input:focus { outline: none; border-color: #7c5cfc; }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #7c5cfc;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background: #6a4ce0; }
+        button:disabled { background: #bbb; cursor: wait; }
+        .error { background: #fff0f0; color: #c00; padding: 12px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; }
+        .pin-result { text-align: center; padding: 24px; }
+        .pin-result .pin {
+            font-size: 48px;
+            font-weight: 700;
+            letter-spacing: 8px;
+            color: #7c5cfc;
+            margin: 16px 0;
+        }
+        .pin-result p { color: #666; font-size: 14px; line-height: 1.5; }
+        .note { font-size: 12px; color: #999; text-align: center; margin-top: 16px; }
+        .child-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .child-row .hb-name {
+            min-width: 80px;
+            font-size: 14px;
+            color: #999;
+        }
+        .child-row input { margin-bottom: 0; flex: 1; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        {% if pin %}
+        <div class="pin-result">
+            <h1>Код готов</h1>
+            <div class="pin">{{ pin }}</div>
+            <p>Скажите Алисе этот код, чтобы привязать аккаунт.<br>Код действует 10 минут.</p>
+        </div>
+
+        {% elif children %}
+        <h1>Дети</h1>
+        <p class="subtitle">Введите имена, как будете произносить их Алисе</p>
+
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="/setup/children">
+            <input type="hidden" name="refresh_token" value="{{ refresh_token }}">
+            <input type="hidden" name="hb_email" value="{{ hb_email }}">
+            {% for child in children %}
+            <div class="child-row">
+                <span class="hb-name">{{ child.name }}</span>
+                <input type="text" name="voice_name_{{ child.uid }}" required
+                       placeholder="Имя голосом" value="{{ child.voice_name or '' }}">
+                <input type="hidden" name="uid_{{ loop.index0 }}" value="{{ child.uid }}">
+                <input type="hidden" name="hb_name_{{ loop.index0 }}" value="{{ child.name }}">
+            </div>
+            {% endfor %}
+            <input type="hidden" name="count" value="{{ children|length }}">
+            <button type="submit">Получить код</button>
+        </form>
+
+        <p class="note">Например: в Huckleberry -- "Ilai", а Алисе скажете "Илай"</p>
+
+        {% else %}
+        <h1>YaBaby</h1>
+        <p class="subtitle">Привяжите аккаунт Huckleberry, чтобы управлять трекером через Алису</p>
+
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" id="setupForm">
+            <label for="email">Email от Huckleberry</label>
+            <input type="email" id="email" name="email" required placeholder="you@example.com" value="{{ email or '' }}">
+
+            <label for="password">Пароль</label>
+            <input type="password" id="password" name="password" required placeholder="Ваш пароль">
+
+            <button type="submit" id="submitBtn">Войти</button>
+        </form>
+
+        <p class="note">Пароль не сохраняется. Мы используем его один раз для авторизации и храним только токен обновления.</p>
+        {% endif %}
+    </div>
+
+    <script>
+        const form = document.getElementById('setupForm');
+        if (form) {
+            form.addEventListener('submit', () => {
+                document.getElementById('submitBtn').disabled = true;
+                document.getElementById('submitBtn').textContent = 'Подключаюсь...';
+            });
+        }
+    </script>
+</body>
+</html>

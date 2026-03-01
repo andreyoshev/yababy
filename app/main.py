@@ -1,11 +1,18 @@
 import json
 import logging
 import sys
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Form, Request
+from fastapi.responses import HTMLResponse
+from jinja2 import Environment, FileSystemLoader
 from loguru import logger
 
-from app.alice.models import AliceResponse, Response
+from app import db
+from app.alice.handlers import handle
+from app.alice.models import AliceRequestBody, AliceResponse
+from app.config import TEMPLATES_DIR
+from app.huckleberry import service as hb
 
 
 class InterceptHandler(logging.Handler):
@@ -31,15 +38,70 @@ def setup_logging() -> None:
 
 setup_logging()
 
-app = FastAPI(title="YaBaby Alice Skill")
+jinja = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)), autoescape=True)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    await db.init()
+    logger.info("DB initialized at {}", db.DB_PATH)
+    yield
+    await db.close()
+
+
+app = FastAPI(title="YaBaby Alice Skill", lifespan=lifespan)
 
 
 @app.post("/alice/webhook")
 async def alice_webhook(request: Request) -> AliceResponse:
-    body = await request.json()
-    logger.info("Alice request:\n{}", json.dumps(body, ensure_ascii=False, indent=2))
+    raw = await request.json()
+    logger.info("Alice request:\n{}", json.dumps(raw, ensure_ascii=False, indent=2))
 
-    is_new = body.get("session", {}).get("new", False)
-    text = "Привет! Я пока учусь." if is_new else "Я тебя слышу, но пока не умею отвечать."
+    body = AliceRequestBody(**raw)
+    response = await handle(body)
 
-    return AliceResponse(response=Response(text=text))
+    logger.info("Alice response: {}", response.response.text)
+    return response
+
+
+@app.get("/setup", response_class=HTMLResponse)
+async def setup_page():
+    tpl = jinja.get_template("setup.html")
+    return tpl.render(pin=None, children=None, error=None, email=None)
+
+
+@app.post("/setup", response_class=HTMLResponse)
+async def setup_submit(email: str = Form(...), password: str = Form(...)):
+    tpl = jinja.get_template("setup.html")
+    try:
+        refresh_token, children = await hb.authenticate(email, password)
+    except Exception as e:
+        logger.error("Huckleberry auth failed: {}", e)
+        return tpl.render(pin=None, children=None, error="Не удалось войти. Проверьте email и пароль.", email=email)
+
+    return tpl.render(
+        pin=None, children=children, error=None,
+        refresh_token=refresh_token, hb_email=email,
+    )
+
+
+@app.post("/setup/children", response_class=HTMLResponse)
+async def setup_children(request: Request):
+    tpl = jinja.get_template("setup.html")
+    form = await request.form()
+    refresh_token = form.get("refresh_token", "")
+    hb_email = form.get("hb_email", "")
+    count = int(form.get("count", "0"))
+
+    children = []
+    for i in range(count):
+        uid = form.get(f"uid_{i}", "")
+        hb_name = form.get(f"hb_name_{i}", "")
+        voice_name = form.get(f"voice_name_{uid}", "").strip()
+        if not voice_name:
+            voice_name = hb_name
+        children.append({"uid": uid, "name": hb_name, "voice_name": voice_name.lower()})
+
+    pin = await db.create_pending_link(hb_email, refresh_token, children)
+    logger.info("PIN {} created for {} with {} children", pin, hb_email, len(children))
+    return tpl.render(pin=pin, children=None, error=None)
