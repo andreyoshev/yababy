@@ -146,14 +146,14 @@ def _format_sleep_status(name: str, data: dict) -> str | None:
         start_ms = timer.get("timerStartTime")
         if start_ms:
             duration = time.time() - start_ms / 1000
-            return f"{name} спит {_duration_text(duration)}."
-        return f"{name} спит."
+            return f"{name} спит уже {_duration_text(duration)}."
+        return f"{name} сейчас спит."
 
     last = prefs.get("lastSleep")
     if last and last.get("start") and last.get("duration"):
         woke_up_ts = last["start"] + last["duration"]
-        awake_sec = time.time() - woke_up_ts
-        return f"{name} не спит {_duration_text(awake_sec)}. Проснулся {_relative_time(woke_up_ts)}."
+        slept_sec = last["duration"]
+        return f"{name} проснулся {_relative_time(woke_up_ts)}, спал {_duration_text(slept_sec)}."
 
     return None
 
@@ -174,14 +174,15 @@ def _format_feed_status(data: dict) -> str | None:
     if bottle_ts >= nursing_ts and bottle_ts > 0:
         amount = last_bottle.get("bottleAmount", 0)
         units = last_bottle.get("bottleUnits", "ml")
-        label = f"бутылочка {amount:.0f} {units}" if amount else "бутылочка"
-        return f"Кормление: {label}, {_relative_time(bottle_ts)}."
+        if amount:
+            return f"Последнее кормление {_relative_time(bottle_ts)}, бутылочка {amount:.0f} {units}."
+        return f"Последнее кормление {_relative_time(bottle_ts)}, бутылочка."
 
     if nursing_ts > 0:
         duration = last_nursing.get("duration", 0)
-        if duration:
-            return f"Кормление: грудь {_duration_text(duration)}, {_relative_time(nursing_ts)}."
-        return f"Кормление: грудь, {_relative_time(nursing_ts)}."
+        if duration and duration > 60:
+            return f"Последнее кормление {_relative_time(nursing_ts)}, грудь {_duration_text(duration)}."
+        return f"Последнее кормление {_relative_time(nursing_ts)}, грудь."
 
     return None
 
@@ -196,7 +197,7 @@ def _format_diaper_status(data: dict) -> str | None:
 
     modes = {"pee": "пописал", "poo": "покакал", "both": "пописал и покакал", "dry": "сухой"}
     mode_label = modes.get(last.get("mode", ""), last.get("mode", ""))
-    return f"Подгузник: {mode_label}, {_relative_time(last['start'])}."
+    return f"Подгузник {_relative_time(last['start'])}, {mode_label}."
 
 
 async def get_status(user: dict, scope: str = "full") -> str:
