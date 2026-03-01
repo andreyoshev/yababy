@@ -43,7 +43,7 @@ server {
 }
 NGINX
 ln -sf "/etc/nginx/sites-available/${SERVICE_NAME}" /etc/nginx/sites-enabled/
-nginx -t && systemctl reload nginx
+nginx -t && systemctl restart nginx
 
 echo "-- Status:"
 systemctl status "$SERVICE_NAME" --no-pager -l
