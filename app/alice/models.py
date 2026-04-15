@@ -64,7 +64,7 @@ class AliceRequestBody(BaseModel):
 class Response(BaseModel):
     text: str
     tts: Optional[str] = None
-    end_session: bool = False
+    end_session: bool = True
     buttons: list[dict] = Field(default_factory=list)
 
 
@@ -73,7 +73,7 @@ class AliceResponse(BaseModel):
     version: str = "1.0"
 
 
-def reply(text: str, tts: str | None = None, end_session: bool = False, buttons: list[dict] | None = None) -> AliceResponse:
+def reply(text: str, tts: str | None = None, end_session: bool = True, buttons: list[dict] | None = None) -> AliceResponse:
     return AliceResponse(
         response=Response(text=text, tts=tts, end_session=end_session, buttons=buttons or [])
     )

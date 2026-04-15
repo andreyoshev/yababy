@@ -41,7 +41,7 @@ async def handle(body: AliceRequestBody) -> AliceResponse:
         return await _try_select_child(user, cmd)
 
     if body.session.new and not cmd:
-        return reply(f"Привет! Слежу за {_cap(user['child_name'])}. {HELP_TEXT}")
+        return reply(f"Привет! Слежу за {_cap(user['child_name'])}. {HELP_TEXT}", end_session=False)
 
     intent_name = _detect_intent(body)
     logger.info("Detected intent: {} for command: {}", intent_name, cmd)
@@ -50,13 +50,14 @@ async def handle(body: AliceRequestBody) -> AliceResponse:
         return await _dispatch(intent_name, body, user)
     except Exception as e:
         logger.exception("Error handling intent {}", intent_name)
-        return reply(f"Ошибка: {e}")
+        return reply(f"Ошибка: {e}", end_session=False)
 
 
 def _ask_to_link() -> AliceResponse:
     return reply(
         f"Привет! Для начала привяжи аккаунт Huckleberry. "
         f"Зайди на {SETUP_URL}, получи код и скажи его мне.",
+        end_session=False,
         buttons=[{"title": "Настроить yababy.oshev.me", "url": f"https://{SETUP_URL}", "hide": False}],
     )
 
@@ -64,7 +65,7 @@ def _ask_to_link() -> AliceResponse:
 async def _try_select_child(user: dict, cmd: str) -> AliceResponse:
     children = json.loads(user.get("children_json") or "[]")
     if not children:
-        return reply("Нет данных о детях. Привяжите аккаунт заново на " + SETUP_URL)
+        return reply("Нет данных о детях. Привяжите аккаунт заново на " + SETUP_URL, end_session=False)
 
     for child in children:
         voice_name = child.get("voice_name", child["name"]).lower()
@@ -73,7 +74,7 @@ async def _try_select_child(user: dict, cmd: str) -> AliceResponse:
             return reply(f"Отлично, слежу за {_cap(voice_name)}! {HELP_TEXT}")
 
     names = ", ".join(c.get("voice_name", c["name"]) for c in children)
-    return reply(f"Не поняла имя. Скажите одно из: {names}")
+    return reply(f"Не поняла имя. Скажите одно из: {names}", end_session=False)
 
 
 def _is_pin(cmd: str) -> bool:
@@ -85,7 +86,7 @@ async def _handle_link(alice_user_id: str, cmd: str) -> AliceResponse:
     pin = re.sub(r"\s+", "", cmd)
     data = await db.consume_pending_link(pin)
     if not data:
-        return reply("Код неверный или истёк. Получите новый на " + SETUP_URL)
+        return reply("Код неверный или истёк. Получите новый на " + SETUP_URL, end_session=False)
 
     children = data["children"]
     voice_name = children[0].get("voice_name", children[0]["name"])
@@ -111,7 +112,10 @@ async def _handle_link(alice_user_id: str, cmd: str) -> AliceResponse:
         children=children,
     )
     names = ", ".join(c.get("voice_name", c["name"]) for c in children)
-    return reply(f"Аккаунт привязан! У вас несколько детей: {names}. Скажите имя ребёнка, за которым следить.")
+    return reply(
+        f"Аккаунт привязан! У вас несколько детей: {names}. Скажите имя ребёнка, за которым следить.",
+        end_session=False,
+    )
 
 
 def _detect_intent(body: AliceRequestBody) -> str:
@@ -189,7 +193,7 @@ async def _dispatch(intent: str, body: AliceRequestBody, user: dict) -> AliceRes
             if amount is None:
                 amount = _extract_ml(body.command)
             if amount is None:
-                return reply("Сколько миллилитров? Скажи, например: выпил 60 мл.")
+                return reply("Сколько миллилитров? Скажи, например: выпил 60 мл.", end_session=False)
             return reply(await hb.log_bottle(user, amount=float(amount)))
         case "feed.breast.start":
             side = body.slot_value("feed.breast.start", "side") or _extract_side(body.command)
@@ -207,4 +211,4 @@ async def _dispatch(intent: str, body: AliceRequestBody, user: dict) -> AliceRes
         case "help" | "YANDEX.HELP":
             return reply(HELP_TEXT)
         case _:
-            return reply("Не понял. " + HELP_TEXT)
+            return reply("Не понял. " + HELP_TEXT, end_session=False)
